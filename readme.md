@@ -1,0 +1,1 @@
+Contents of the [_converter directory](/_converter) were written by [Tophat](https://tophat.com/). The rest of the program was written as part of my work at the [ISG](https://www.ed.ac.uk/information-services). 
