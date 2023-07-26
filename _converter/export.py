@@ -2,7 +2,7 @@ from os import listdir, remove
 from shutil import rmtree
 from time import sleep
 
-for fname in ["node_modules", "__pycache__", "output", "final_output"]:
+for fname in ["node_modules", "__pycache__", "output", "final_output", "tmp"]:
     try:
         rmtree("{}/".format(fname))
     except:

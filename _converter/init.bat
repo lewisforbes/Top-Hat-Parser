@@ -1,1 +1,1 @@
-cd _converter && npm install && node .
+cd _converter && npm install

@@ -1,5 +1,6 @@
 import csv
-from os import listdir, mkdir
+from os import listdir, mkdir, rename, remove
+from shutil import rmtree
 from os.path import isfile, join
 from subprocess import call
 from time import sleep
@@ -9,6 +10,18 @@ def exception(msg):
     print(msg)
     sleep(3)
     raise Exception()
+
+# installs node modules if required, creates output path. 
+def init(out_path, user_path):
+    call("_converter\init.bat")
+    try:
+        mkdir(out_path)
+    except:
+        pass
+    try:
+        remove(user_path+"placeholder")
+    except:
+        pass
 
 # generate formatted string from q details
 def parse_q(q, correct_raw, ans):
@@ -37,13 +50,10 @@ def parse_q(q, correct_raw, ans):
 
     return output
 
-# installs node modules if required and joins processed csvs 
-def init(dirname, outname, out_path):
-    call("_converter\init.bat")
-    mkdir(out_path)
-
+# joins all csvs in dirname to one file at the path/name outname 
+def join(dirname, outname):
     # join csvs
-    fnames = [f for f in listdir(dirname) if isfile(join(dirname, f))]
+    fnames = listdir(dirname)
     if len(fnames)==0:
         exception("No input files provided.")
     output = []
@@ -62,48 +72,59 @@ def init(dirname, outname, out_path):
     with open(outname, 'w', newline='') as file:
         mywriter = csv.writer(file, delimiter=',')
         mywriter.writerows(output)
-    return outname
+
+def go(user_path, out_path, in_path):
+    user_files = listdir(user_path)
+    if len(user_files)!=1:
+        exception("Something's gone wrong. Why are there {} input files?.".format(len(user_files)))
+    user_fname = user_files[0]
+
+    # create input csv for program
+    joined_fname = out_path+"[joined] "+ user_fname
+    call("_converter\convert.bat")
+    join(in_path, joined_fname)
 
 
-# input/output for the program
-in_path="_converter/output/"
-out_path="_converter/final_output/"
+    # make data
+    f = open(joined_fname, "r")
+    first = True
+    i = 0
+    output = "## Questions from {}".format(user_fname)
+    for line in csv.reader(f, quotechar='"', delimiter=',', quoting=csv.QUOTE_ALL, skipinitialspace=True):
+        if first:
+            first=False
+            continue
+        i+=1
+        output += "\n### Question {}".format(i)
+        output += parse_q(line[1], line[2], line[3:])
+        output += "\n"
 
-# user's input
-user_path = "_converter/input/"
-user_files = listdir(user_path)
-try:
-    user_files.remove("placeholder")
-except:
-    pass
+    output = output.replace('\u2713', '') # remove rogue trailing character, strip() doesn't work
+    f.close()
 
-if len(user_files)!=1:
-    exception("Must provide exactly 1 input file. You've given {}.".format(len(user_files)))
-user_fname = user_files[0]
+    f = open(out_path+"[parsed] " + user_fname.replace(".csv", ".md"), "w")
+    f.write(output)
+    f.close()
 
-# create input csv for program
-joined_fname = out_path+"[joined] "+ user_fname
-init(in_path, joined_fname, out_path)
 
-# make data
-f = open(joined_fname, "r")
-first = True
-i = 0
-output = "## Questions from {}".format(user_fname)
-for line in csv.reader(f, quotechar='"', delimiter=',', quoting=csv.QUOTE_ALL, skipinitialspace=True):
-    if first:
-        first=False
-        continue
-    i+=1
-    output += "\n### Question {}".format(i)
-    output += parse_q(line[1], line[2], line[3:])
-    output += "\n"
+# constants
+base = "_converter/"
+tmp = base+"tmp/"
+user_path = base+"input/" # user input
+in_path = base+"output/" # program input
+out_path = base+"final_output/" # program output
 
-output = output.replace('\u2713', '') # remove rogue trailing character, strip() doesn't work
-f.close()
+# main 
+init(out_path, user_path)
+rename(user_path, tmp)
+mkdir(user_path)
+for fname in listdir(tmp):
+    rename(tmp+fname, user_path+fname)
+    go(user_path, out_path, in_path)
+    rename(user_path+fname, tmp+fname)
 
-f = open(out_path+"[parsed] " + user_fname.replace(".csv", ".md"), "w")
-f.write(output)
-f.close()
-
+# tidying up
+assert len(listdir(user_path))==0
+rmtree(user_path)
+rename(tmp, user_path)
 sleep(1)
